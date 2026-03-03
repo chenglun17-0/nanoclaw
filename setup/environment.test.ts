@@ -73,25 +73,21 @@ describe('registered groups DB query', () => {
 });
 
 describe('credentials detection', () => {
-  it('detects ANTHROPIC_API_KEY in env content', () => {
-    const content =
-      'SOME_KEY=value\nANTHROPIC_API_KEY=sk-ant-test123\nOTHER=foo';
-    const hasCredentials =
-      /^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=/m.test(content);
+  it('detects ANTHROPIC_AUTH_TOKEN in env content', () => {
+    const content = 'SOME_KEY=value\nANTHROPIC_AUTH_TOKEN=cr_test123\nOTHER=foo';
+    const hasCredentials = /^ANTHROPIC_AUTH_TOKEN=/m.test(content);
     expect(hasCredentials).toBe(true);
   });
 
-  it('detects CLAUDE_CODE_OAUTH_TOKEN in env content', () => {
-    const content = 'CLAUDE_CODE_OAUTH_TOKEN=token123';
-    const hasCredentials =
-      /^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=/m.test(content);
-    expect(hasCredentials).toBe(true);
+  it('does not detect legacy credential variables', () => {
+    const content = 'CLAUDE_CODE_OAUTH_TOKEN=token123\nANTHROPIC_API_KEY=sk-ant-test123';
+    const hasCredentials = /^ANTHROPIC_AUTH_TOKEN=/m.test(content);
+    expect(hasCredentials).toBe(false);
   });
 
   it('returns false when no credentials', () => {
     const content = 'ASSISTANT_NAME="Andy"\nOTHER=foo';
-    const hasCredentials =
-      /^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=/m.test(content);
+    const hasCredentials = /^ANTHROPIC_AUTH_TOKEN=/m.test(content);
     expect(hasCredentials).toBe(false);
   });
 });

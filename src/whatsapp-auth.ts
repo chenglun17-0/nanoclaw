@@ -19,6 +19,7 @@ import makeWASocket, {
   makeCacheableSignalKeyStore,
   useMultiFileAuthState,
 } from '@whiskeysockets/baileys';
+import { createProxyAgent, getProxyUrlFromEnv } from './proxy-agent.js';
 
 const AUTH_DIR = './store/auth';
 const QR_FILE = './store/qr-data.txt';
@@ -67,15 +68,17 @@ async function connectSocket(
     );
     return { version: undefined };
   });
+  const proxyAgent = createProxyAgent(getProxyUrlFromEnv());
   const sock = makeWASocket({
     version,
     auth: {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, logger),
     },
-    printQRInTerminal: false,
     logger,
     browser: Browsers.macOS('Chrome'),
+    agent: proxyAgent,
+    fetchAgent: proxyAgent,
   });
 
   if (usePairingCode && phoneNumber && !state.creds.me) {

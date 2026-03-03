@@ -19,12 +19,8 @@ import {
 } from '../config.js';
 import { getLastGroupSync, setLastGroupSync, updateChatName } from '../db.js';
 import { logger } from '../logger.js';
-import {
-  Channel,
-  OnInboundMessage,
-  OnChatMetadata,
-  RegisteredGroup,
-} from '../types.js';
+import { createProxyAgent, getProxyUrlFromEnv, redactProxyUrl } from '../proxy-agent.js';
+import { Channel, OnInboundMessage, OnChatMetadata, RegisteredGroup } from '../types.js';
 
 const GROUP_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -69,6 +65,11 @@ export class WhatsAppChannel implements Channel {
       );
       return { version: undefined };
     });
+    const proxyUrl = getProxyUrlFromEnv();
+    const proxyAgent = createProxyAgent(proxyUrl);
+    if (proxyAgent) {
+      logger.info({ proxy: redactProxyUrl(proxyUrl) }, 'Using proxy for WhatsApp connection');
+    }
     this.sock = makeWASocket({
       version,
       auth: {
@@ -78,6 +79,8 @@ export class WhatsAppChannel implements Channel {
       printQRInTerminal: false,
       logger,
       browser: Browsers.macOS('Chrome'),
+      agent: proxyAgent,
+      fetchAgent: proxyAgent,
     });
 
     this.sock.ev.on('connection.update', (update) => {
