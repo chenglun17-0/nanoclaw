@@ -12,6 +12,22 @@ import { logger } from '../src/logger.js';
 import { commandExists, getPlatform, isHeadless, isWSL } from './platform.js';
 import { emitStatus } from './status.js';
 
+function hasNonEmptyEnvValue(content: string, key: string): boolean {
+  const pattern = new RegExp(`^${key}[ \\t]*=[ \\t]*([^\\r\\n]*)$`, 'm');
+  const match = content.match(pattern);
+  if (!match) return false;
+
+  let value = match[1].trim();
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1).trim();
+  }
+
+  return value.length > 0;
+}
+
 export async function run(_args: string[]): Promise<void> {
   const projectRoot = process.cwd();
 
@@ -42,8 +58,13 @@ export async function run(_args: string[]): Promise<void> {
   // Check existing config
   const hasEnv = fs.existsSync(path.join(projectRoot, '.env'));
 
-  const authDir = path.join(projectRoot, 'store', 'auth');
-  const hasAuth = fs.existsSync(authDir) && fs.readdirSync(authDir).length > 0;
+  let hasChannelConfig = false;
+  if (hasEnv) {
+    const envContent = fs.readFileSync(path.join(projectRoot, '.env'), 'utf-8');
+    const hasAppId = hasNonEmptyEnvValue(envContent, 'FEISHU_APP_ID');
+    const hasAppSecret = hasNonEmptyEnvValue(envContent, 'FEISHU_APP_SECRET');
+    hasChannelConfig = hasAppId && hasAppSecret;
+  }
 
   let hasRegisteredGroups = false;
   // Check JSON file first (pre-migration)
@@ -73,7 +94,7 @@ export async function run(_args: string[]): Promise<void> {
       appleContainer,
       docker,
       hasEnv,
-      hasAuth,
+      hasChannelConfig,
       hasRegisteredGroups,
     },
     'Environment check complete',
@@ -86,7 +107,7 @@ export async function run(_args: string[]): Promise<void> {
     APPLE_CONTAINER: appleContainer,
     DOCKER: docker,
     HAS_ENV: hasEnv,
-    HAS_AUTH: hasAuth,
+    HAS_CHANNEL_CONFIG: hasChannelConfig,
     HAS_REGISTERED_GROUPS: hasRegisteredGroups,
     STATUS: 'success',
     LOG: 'logs/setup.log',

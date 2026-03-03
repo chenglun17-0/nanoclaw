@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import fs from 'fs';
 
 import Database from 'better-sqlite3';
 
@@ -100,18 +99,38 @@ describe('Docker detection logic', () => {
   });
 });
 
-describe('WhatsApp auth detection', () => {
-  it('detects non-empty auth directory logic', () => {
-    // Simulate the check: directory exists and has files
-    const hasAuth = (authDir: string) => {
-      try {
-        return fs.existsSync(authDir) && fs.readdirSync(authDir).length > 0;
-      } catch {
-        return false;
+describe('Feishu config detection', () => {
+  it('requires both FEISHU_APP_ID and FEISHU_APP_SECRET', () => {
+    const hasNonEmptyEnvValue = (content: string, key: string) => {
+      const pattern = new RegExp(`^${key}[ \\t]*=[ \\t]*([^\\r\\n]*)$`, 'm');
+      const match = content.match(pattern);
+      if (!match) return false;
+
+      let value = match[1].trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1).trim();
       }
+
+      return value.length > 0;
     };
 
-    // Non-existent directory
-    expect(hasAuth('/tmp/nonexistent_auth_dir_xyz')).toBe(false);
+    const hasChannelConfig = (content: string) =>
+      hasNonEmptyEnvValue(content, 'FEISHU_APP_ID') &&
+      hasNonEmptyEnvValue(content, 'FEISHU_APP_SECRET');
+
+    expect(hasChannelConfig('FEISHU_APP_ID=cli_xxx')).toBe(false);
+    expect(hasChannelConfig('FEISHU_APP_SECRET=sec_xxx')).toBe(false);
+    expect(hasChannelConfig(`FEISHU_APP_ID=cli_xxx\nFEISHU_APP_SECRET=sec_xxx`)).toBe(
+      true,
+    );
+    expect(hasChannelConfig('FEISHU_APP_ID=\nFEISHU_APP_SECRET=sec_xxx')).toBe(
+      false,
+    );
+    expect(
+      hasChannelConfig('FEISHU_APP_ID=\"cli_xxx\"\nFEISHU_APP_SECRET=\"\"'),
+    ).toBe(false);
   });
 });

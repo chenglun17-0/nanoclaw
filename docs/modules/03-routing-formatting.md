@@ -25,7 +25,7 @@
 
 - 上游： [启动与主编排](./01-startup-orchestrator.md)
 - 下游：
-  - [通道接入](./02-channels-whatsapp.md)
+  - [通道接入](./02-channels-feishu.md)
   - [容器执行层](./05-container-execution.md)
 
 ## 改动建议

@@ -7,7 +7,7 @@
 | 模块 | 说明 | 详细文档 |
 |---|---|---|
 | 启动与主编排 | 主进程生命周期、消息循环、全局状态协同 | [01-startup-orchestrator.md](modules/01-startup-orchestrator.md) |
-| 通道接入（WhatsApp） | 通道连接、认证、收发消息、会话状态 | [02-channels-whatsapp.md](modules/02-channels-whatsapp.md) |
+| 通道接入（飞书） | 通道连接、收发消息、会话状态 | [02-channels-feishu.md](modules/02-channels-feishu.md) |
 | 路由与格式化 | 入站消息结构化、出站文本清理与路由 | [03-routing-formatting.md](modules/03-routing-formatting.md) |
 | 组队列与并发控制 | group 内串行、跨 group 限流、任务/消息排队 | [04-group-queue-concurrency.md](modules/04-group-queue-concurrency.md) |
 | 容器执行层 | 容器启动、挂载构造、输出流处理 | [05-container-execution.md](modules/05-container-execution.md) |
@@ -23,7 +23,7 @@
 ## 核心调用链（跨模块）
 
 1. 主编排加载状态并拉起通道、IPC、调度器：见 [01-startup-orchestrator.md](modules/01-startup-orchestrator.md)
-2. 通道接收消息写入 DB：见 [02-channels-whatsapp.md](modules/02-channels-whatsapp.md)
+2. 通道接收消息写入 DB：见 [02-channels-feishu.md](modules/02-channels-feishu.md)
 3. 主循环取消息并进入队列：见 [04-group-queue-concurrency.md](modules/04-group-queue-concurrency.md)
 4. 队列触发容器执行并流式回传：见 [05-container-execution.md](modules/05-container-execution.md)
 5. 容器内 runner 调用 SDK：见 [13-agent-runner.md](modules/13-agent-runner.md)

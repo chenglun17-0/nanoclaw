@@ -13,7 +13,7 @@
 ## 主要职责
 
 1. 初始化数据库与运行态（已注册群组、session、游标状态）。
-2. 启动通道连接（当前为 WhatsApp）。
+2. 启动通道连接（当前为飞书）。
 3. 拉起消息轮询循环并将消息提交到队列。
 4. 拉起 IPC watcher 与任务调度循环。
 5. 维护主流程级错误恢复与状态保存。
@@ -27,7 +27,7 @@
 
 - 上游：无（系统入口）。
 - 下游：
-  - [通道接入](./02-channels-whatsapp.md)
+  - [通道接入](./02-channels-feishu.md)
   - [路由与格式化](./03-routing-formatting.md)
   - [组队列与并发控制](./04-group-queue-concurrency.md)
   - [容器执行层](./05-container-execution.md)

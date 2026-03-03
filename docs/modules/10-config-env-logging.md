@@ -30,7 +30,7 @@
 - 上游：无（基础设施层）
 - 下游：
   - [启动与主编排](./01-startup-orchestrator.md)
-  - [通道接入](./02-channels-whatsapp.md)
+  - [通道接入](./02-channels-feishu.md)
   - [容器执行层](./05-container-execution.md)
   - [Setup 与部署](./11-setup-deployment.md)
 

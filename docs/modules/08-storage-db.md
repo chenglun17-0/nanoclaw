@@ -26,7 +26,7 @@
 
 - 上游：
   - [启动与主编排](./01-startup-orchestrator.md)
-  - [通道接入](./02-channels-whatsapp.md)
+  - [通道接入](./02-channels-feishu.md)
   - [IPC 控制面](./06-ipc-control-plane.md)
   - [任务调度](./07-task-scheduler.md)
 - 下游：无（底层存储）

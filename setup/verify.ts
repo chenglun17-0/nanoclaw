@@ -21,6 +21,22 @@ import {
 } from './platform.js';
 import { emitStatus } from './status.js';
 
+function hasNonEmptyEnvValue(content: string, key: string): boolean {
+  const pattern = new RegExp(`^${key}[ \\t]*=[ \\t]*([^\\r\\n]*)$`, 'm');
+  const match = content.match(pattern);
+  if (!match) return false;
+
+  let value = match[1].trim();
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    value = value.slice(1, -1).trim();
+  }
+
+  return value.length > 0;
+}
+
 export async function run(_args: string[]): Promise<void> {
   const projectRoot = process.cwd();
   const platform = getPlatform();
@@ -105,11 +121,15 @@ export async function run(_args: string[]): Promise<void> {
     }
   }
 
-  // 4. Check WhatsApp auth
-  let whatsappAuth = 'not_found';
-  const authDir = path.join(projectRoot, 'store', 'auth');
-  if (fs.existsSync(authDir) && fs.readdirSync(authDir).length > 0) {
-    whatsappAuth = 'authenticated';
+  // 4. Check Feishu channel config
+  let feishuConfig = 'missing';
+  if (fs.existsSync(envFile)) {
+    const envContent = fs.readFileSync(envFile, 'utf-8');
+    const hasAppId = hasNonEmptyEnvValue(envContent, 'FEISHU_APP_ID');
+    const hasAppSecret = hasNonEmptyEnvValue(envContent, 'FEISHU_APP_SECRET');
+    if (hasAppId && hasAppSecret) {
+      feishuConfig = 'configured';
+    }
   }
 
   // 5. Check registered groups (using better-sqlite3, not sqlite3 CLI)
@@ -142,7 +162,7 @@ export async function run(_args: string[]): Promise<void> {
   const status =
     service === 'running' &&
     credentials !== 'missing' &&
-    whatsappAuth !== 'not_found' &&
+    feishuConfig === 'configured' &&
     registeredGroups > 0
       ? 'success'
       : 'failed';
@@ -153,7 +173,7 @@ export async function run(_args: string[]): Promise<void> {
     SERVICE: service,
     CONTAINER_RUNTIME: containerRuntime,
     CREDENTIALS: credentials,
-    WHATSAPP_AUTH: whatsappAuth,
+    FEISHU_CONFIG: feishuConfig,
     REGISTERED_GROUPS: registeredGroups,
     MOUNT_ALLOWLIST: mountAllowlist,
     STATUS: status,
