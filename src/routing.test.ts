@@ -133,7 +133,11 @@ describe('getAvailableGroups', () => {
   });
 
   it('excludes non-group chats regardless of JID format', () => {
-    storeChatMetadata('unknown-format-123', '2024-01-01T00:00:01.000Z', 'Unknown');
+    storeChatMetadata(
+      'unknown-format-123',
+      '2024-01-01T00:00:01.000Z',
+      'Unknown',
+    );
     storeChatMetadata(
       'custom:abc',
       '2024-01-01T00:00:02.000Z',

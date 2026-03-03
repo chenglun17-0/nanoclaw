@@ -123,14 +123,21 @@ function buildVolumeMounts(
   // claude-code reads this as user-level settings via --setting-sources user.
   const settingsFile = path.join(groupSessionsDir, 'settings.json');
   const secrets = readSecrets();
-  fs.writeFileSync(settingsFile, JSON.stringify({
-    env: {
-      CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1',
-      CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1',
-      CLAUDE_CODE_DISABLE_AUTO_MEMORY: '0',
-      ...secrets,
-    },
-  }, null, 2) + '\n');
+  fs.writeFileSync(
+    settingsFile,
+    JSON.stringify(
+      {
+        env: {
+          CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1',
+          CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1',
+          CLAUDE_CODE_DISABLE_AUTO_MEMORY: '0',
+          ...secrets,
+        },
+      },
+      null,
+      2,
+    ) + '\n',
+  );
 
   // Sync skills from container/skills/ into each group's .claude/skills/
   const skillsSrc = path.join(process.cwd(), 'container', 'skills');

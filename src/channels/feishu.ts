@@ -89,7 +89,9 @@ export class FeishuChannel implements Channel {
     const appSecret = env.FEISHU_APP_SECRET;
 
     if (!appId || !appSecret) {
-      throw new Error('FEISHU_APP_ID and FEISHU_APP_SECRET must be set in .env');
+      throw new Error(
+        'FEISHU_APP_ID and FEISHU_APP_SECRET must be set in .env',
+      );
     }
 
     const baseConfig = {
@@ -217,8 +219,7 @@ export class FeishuChannel implements Channel {
 
     const mentionedAssistant = mentionList.some(
       (m) =>
-        m.name &&
-        normalizeText(m.name).includes(normalizeText(ASSISTANT_NAME)),
+        m.name && normalizeText(m.name).includes(normalizeText(ASSISTANT_NAME)),
     );
 
     if (mentionedAssistant && !TRIGGER_PATTERN.test(content)) {

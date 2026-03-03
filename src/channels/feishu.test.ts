@@ -116,8 +116,7 @@ function createMessageEvent(overrides?: {
       chat_type: overrides?.chat_type || 'group',
       message_type: overrides?.message_type || 'text',
       content:
-        overrides?.content ||
-        JSON.stringify({ text: 'Hello from Feishu' }),
+        overrides?.content || JSON.stringify({ text: 'Hello from Feishu' }),
       mentions: overrides?.mentions,
     },
   };
