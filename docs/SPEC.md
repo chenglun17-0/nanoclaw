@@ -1,6 +1,6 @@
 # NanoClaw Specification
 
-A personal Claude assistant accessible via WhatsApp, with persistent memory per conversation, scheduled tasks, and email integration.
+A personal Claude assistant accessible via Feishu, with persistent memory per conversation and scheduled tasks.
 
 ---
 
@@ -29,8 +29,8 @@ A personal Claude assistant accessible via WhatsApp, with persistent memory per 
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │  ┌──────────────┐                     ┌────────────────────┐        │
-│  │  WhatsApp    │────────────────────▶│   SQLite Database  │        │
-│  │  (baileys)   │◀────────────────────│   (messages.db)    │        │
+│  │   Feishu     │────────────────────▶│   SQLite Database  │        │
+│  │ (Lark SDK)   │◀────────────────────│   (messages.db)    │        │
 │  └──────────────┘   store/send        └─────────┬──────────┘        │
 │                                                  │                   │
 │         ┌────────────────────────────────────────┘                   │
@@ -73,7 +73,7 @@ A personal Claude assistant accessible via WhatsApp, with persistent memory per 
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| WhatsApp Connection | Node.js (@whiskeysockets/baileys) | Connect to WhatsApp, send/receive messages |
+| Feishu Connection | Node.js (@larksuiteoapi/node-sdk) | Connect to Feishu, send/receive messages |
 | Message Storage | SQLite (better-sqlite3) | Store messages for polling |
 | Container Runtime | Containers (Linux VMs) | Isolated environments for agent execution |
 | Agent | @anthropic-ai/claude-agent-sdk (0.2.29) | Run Claude with tools and MCP servers |
@@ -100,7 +100,7 @@ nanoclaw/
 ├── src/
 │   ├── index.ts                   # Orchestrator: state, message loop, agent invocation
 │   ├── channels/
-│   │   └── whatsapp.ts            # WhatsApp connection, auth, send/receive
+│   │   └── feishu.ts              # Feishu connection, send/receive
 │   ├── ipc.ts                     # IPC watcher and task processing
 │   ├── router.ts                  # Message formatting and outbound routing
 │   ├── config.ts                  # Configuration constants
@@ -109,7 +109,6 @@ nanoclaw/
 │   ├── db.ts                      # SQLite database initialization and queries
 │   ├── group-queue.ts             # Per-group queue with global concurrency limit
 │   ├── mount-security.ts          # Mount allowlist validation for containers
-│   ├── whatsapp-auth.ts           # Standalone WhatsApp authentication
 │   ├── task-scheduler.ts          # Runs scheduled tasks when due
 │   └── container-runner.ts        # Spawns agents in containers
 │
@@ -123,7 +122,7 @@ nanoclaw/
 │   │       ├── index.ts           # Entry point (query loop, IPC polling, session resume)
 │   │       └── ipc-mcp-stdio.ts   # Stdio-based MCP server for host communication
 │   └── skills/
-│       └── agent-browser.md       # Browser automation skill
+│       └── find-skills/SKILL.md   # Skill discovery helper
 │
 ├── dist/                          # Compiled JavaScript (gitignored)
 │
@@ -140,7 +139,8 @@ nanoclaw/
 │       └── add-parallel/SKILL.md       # /add-parallel - Parallel agents
 │
 ├── groups/
-│   ├── CLAUDE.md                  # Global memory (all groups read this)
+│   ├── global/
+│   │   └── CLAUDE.md              # Shared global memory (loaded for non-main groups)
 │   ├── main/                      # Self-chat (main control channel)
 │   │   ├── CLAUDE.md              # Main channel memory
 │   │   └── logs/                  # Task execution logs
@@ -150,7 +150,6 @@ nanoclaw/
 │       └── *.md                   # Files created by the agent
 │
 ├── store/                         # Local data (gitignored)
-│   ├── auth/                      # WhatsApp authentication state
 │   └── messages.db                # SQLite database (messages, chats, scheduled_tasks, task_run_logs, registered_groups, sessions, router_state)
 │
 ├── data/                          # Application state (gitignored)
@@ -203,7 +202,7 @@ export const TRIGGER_PATTERN = new RegExp(`^@${ASSISTANT_NAME}\\b`, 'i');
 Groups can have additional directories mounted via `containerConfig` in the SQLite `registered_groups` table (stored as JSON in the `container_config` column). Example registration:
 
 ```typescript
-registerGroup("1234567890@g.us", {
+registerGroup("fs:oc_xxxxxxxxxxxxx", {
   name: "Dev Team",
   folder: "dev-team",
   trigger: "@Andy",
@@ -219,6 +218,13 @@ registerGroup("1234567890@g.us", {
     timeout: 600000,
   },
 });
+```
+
+Feishu channel credentials are loaded from `.env` on host startup:
+
+```bash
+FEISHU_APP_ID=cli_xxx
+FEISHU_APP_SECRET=sec_xxx
 ```
 
 Additional mounts appear at `/workspace/extra/{containerPath}` inside the container.
@@ -246,7 +252,6 @@ ASSISTANT_NAME=Bot npm start
 
 Or edit the default in `src/config.ts`. This changes:
 - The trigger pattern (messages must start with `@YourName`)
-- The response prefix (`YourName:` added automatically)
 
 ### Placeholder Values in launchd
 
@@ -265,7 +270,7 @@ NanoClaw uses a hierarchical memory system based on CLAUDE.md files.
 
 | Level | Location | Read By | Written By | Purpose |
 |-------|----------|---------|------------|---------|
-| **Global** | `groups/CLAUDE.md` | All groups | Main only | Preferences, facts, context shared across all conversations |
+| **Global** | `groups/global/CLAUDE.md` | Non-main groups | Maintainers/admin workflow | Preferences, facts, context shared across groups |
 | **Group** | `groups/{name}/CLAUDE.md` | That group | That group | Group-specific context, conversation memory |
 | **Files** | `groups/{name}/*.md` | That group | That group | Notes, research, documents created during conversation |
 
@@ -273,13 +278,11 @@ NanoClaw uses a hierarchical memory system based on CLAUDE.md files.
 
 1. **Agent Context Loading**
    - Agent runs with `cwd` set to `groups/{group-name}/`
-   - Claude Agent SDK with `settingSources: ['project']` automatically loads:
-     - `../CLAUDE.md` (parent directory = global memory)
-     - `./CLAUDE.md` (current directory = group memory)
+   - Group memory comes from `./CLAUDE.md`
+   - For non-main groups, `groups/global/CLAUDE.md` is appended as extra system context
 
 2. **Writing Memory**
    - When user says "remember this", agent writes to `./CLAUDE.md`
-   - When user says "remember this globally" (main channel only), agent writes to `../CLAUDE.md`
    - Agent can create files like `notes.md`, `research.md` in the group folder
 
 3. **Main Channel Privileges**
@@ -308,10 +311,10 @@ Sessions enable conversation continuity - Claude remembers what you talked about
 ### Incoming Message Flow
 
 ```
-1. User sends WhatsApp message
+1. User sends Feishu message
    │
    ▼
-2. Baileys receives message via WhatsApp Web protocol
+2. Feishu event subscription receives message via websocket
    │
    ▼
 3. Message stored in SQLite (store/messages.db)
@@ -340,10 +343,10 @@ Sessions enable conversation continuity - Claude remembers what you talked about
    ▼
 8. Claude processes message:
    ├── Reads CLAUDE.md files for context
-   └── Uses tools as needed (search, email, etc.)
+   └── Uses tools as needed (search, scheduling, etc.)
    │
    ▼
-9. Router prefixes response with assistant name and sends via WhatsApp
+9. Router sends response via Feishu
    │
    ▼
 10. Router updates last agent timestamp and saves session ID
@@ -467,7 +470,7 @@ The `nanoclaw` MCP server is created dynamically per agent call with the current
 | `pause_task` | Pause a task |
 | `resume_task` | Resume a paused task |
 | `cancel_task` | Delete a task |
-| `send_message` | Send a WhatsApp message to the group |
+| `send_message` | Send a message to the group chat |
 
 ---
 
@@ -481,7 +484,7 @@ When NanoClaw starts, it:
 1. **Ensures container runtime is running** - Automatically starts it if needed; kills orphaned NanoClaw containers from previous runs
 2. Initializes the SQLite database (migrates from JSON files if they exist)
 3. Loads state from SQLite (registered groups, sessions, router state)
-4. Connects to WhatsApp (on `connection.open`):
+4. Connects to Feishu (after websocket startup):
    - Starts the scheduler loop
    - Starts the IPC watcher for container messages
    - Sets up the per-group queue with `processGroupMessages`
@@ -556,11 +559,11 @@ All agents run inside containers (lightweight Linux VMs), providing:
 - **Safe Bash access**: Commands run inside the container, not on your Mac
 - **Network isolation**: Can be configured per-container if needed
 - **Process isolation**: Container processes can't affect the host
-- **Non-root user**: Container runs as unprivileged `node` user (uid 1000)
+- **Non-root user**: Container runs as unprivileged user (default `node` uid 1000; may map to host uid/gid)
 
 ### Prompt Injection Risk
 
-WhatsApp messages could contain malicious instructions attempting to manipulate Claude's behavior.
+Feishu messages could contain malicious instructions attempting to manipulate Claude's behavior.
 
 **Mitigations:**
 - Container isolation limits blast radius
@@ -581,7 +584,7 @@ WhatsApp messages could contain malicious instructions attempting to manipulate 
 | Credential | Storage Location | Notes |
 |------------|------------------|-------|
 | Claude CLI Auth | data/sessions/{group}/.claude/ | Per-group isolation, mounted to /home/node/.claude/ |
-| WhatsApp Session | store/auth/ | Auto-created, persists ~20 days |
+| Feishu App Credentials | `.env` (host process) | Required keys: `FEISHU_APP_ID`, `FEISHU_APP_SECRET` |
 
 ### File Permissions
 
@@ -603,7 +606,7 @@ chmod 700 groups/
 | "Claude Code process exited with code 1" | Session mount path wrong | Ensure mount is to `/home/node/.claude/` not `/root/.claude/` |
 | Session not continuing | Session ID not saved | Check SQLite: `sqlite3 store/messages.db "SELECT * FROM sessions"` |
 | Session not continuing | Mount path mismatch | Container user is `node` with HOME=/home/node; sessions must be at `/home/node/.claude/` |
-| "QR code expired" | WhatsApp session expired | Delete store/auth/ and restart |
+| "FEISHU_APP_ID and FEISHU_APP_SECRET must be set in .env" | Missing channel credentials | Add `FEISHU_APP_ID` and `FEISHU_APP_SECRET` to `.env`, then restart |
 | "No groups registered" | Haven't added groups | Use `@Andy add group "Name"` in main |
 
 ### Log Location
