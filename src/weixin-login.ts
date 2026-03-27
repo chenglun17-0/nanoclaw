@@ -34,13 +34,18 @@ async function fetchQrCode(apiBase: string): Promise<QrCodeResponse> {
 
   if (!response.ok) {
     const body = await response.text().catch(() => '(unreadable)');
-    throw new Error(`QR fetch failed: ${response.status} ${response.statusText} body=${body}`);
+    throw new Error(
+      `QR fetch failed: ${response.status} ${response.statusText} body=${body}`,
+    );
   }
 
   return (await response.json()) as QrCodeResponse;
 }
 
-async function pollQrStatus(apiBase: string, qrcode: string): Promise<QrStatusResponse> {
+async function pollQrStatus(
+  apiBase: string,
+  qrcode: string,
+): Promise<QrStatusResponse> {
   const base = apiBase.endsWith('/') ? apiBase : `${apiBase}/`;
   const url = `${base}ilink/bot/get_qrcode_status?qrcode=${encodeURIComponent(qrcode)}`;
 
@@ -76,7 +81,12 @@ async function waitForLogin(
   apiBase: string,
   initialQrToken: string,
   timeoutMs = 480_000,
-): Promise<{ token: string; botId: string; baseUrl?: string; userId?: string }> {
+): Promise<{
+  token: string;
+  botId: string;
+  baseUrl?: string;
+  userId?: string;
+}> {
   const deadline = Date.now() + timeoutMs;
   let scannedPrinted = false;
   let currentQrToken = initialQrToken;
@@ -100,9 +110,13 @@ async function waitForLogin(
       case 'expired':
         refreshCount++;
         if (refreshCount > MAX_QR_REFRESH) {
-          throw new Error(`QR code expired ${MAX_QR_REFRESH} times, please retry`);
+          throw new Error(
+            `QR code expired ${MAX_QR_REFRESH} times, please retry`,
+          );
         }
-        process.stdout.write(`\n⏳ 二维码已过期，正在刷新...(${refreshCount}/${MAX_QR_REFRESH})\n`);
+        process.stdout.write(
+          `\n⏳ 二维码已过期，正在刷新...(${refreshCount}/${MAX_QR_REFRESH})\n`,
+        );
         const newQr = await fetchQrCode(apiBase);
         currentQrToken = newQr.qrcode;
         scannedPrinted = false;
@@ -113,7 +127,9 @@ async function waitForLogin(
 
       case 'confirmed':
         if (!data.bot_token || !data.ilink_bot_id) {
-          throw new Error('Login confirmed but server did not return bot_token / ilink_bot_id');
+          throw new Error(
+            'Login confirmed but server did not return bot_token / ilink_bot_id',
+          );
         }
         return {
           token: data.bot_token,
@@ -154,14 +170,20 @@ export async function loginWeixin(): Promise<{ token: string; botId: string }> {
   }
 
   if (envContent.includes('WEIXIN_TOKEN=')) {
-    envContent = envContent.replace(/WEIXIN_TOKEN=.*/g, `WEIXIN_TOKEN=${result.token}`);
+    envContent = envContent.replace(
+      /WEIXIN_TOKEN=.*/g,
+      `WEIXIN_TOKEN=${result.token}`,
+    );
   } else {
     envContent += `\nWEIXIN_TOKEN=${result.token}\n`;
   }
 
   const baseUrl = result.baseUrl || WEIXIN_API_BASE;
   if (envContent.includes('WEIXIN_BASE_URL=')) {
-    envContent = envContent.replace(/WEIXIN_BASE_URL=.*/g, `WEIXIN_BASE_URL=${baseUrl}`);
+    envContent = envContent.replace(
+      /WEIXIN_BASE_URL=.*/g,
+      `WEIXIN_BASE_URL=${baseUrl}`,
+    );
   } else {
     envContent += `WEIXIN_BASE_URL=${baseUrl}\n`;
   }

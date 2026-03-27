@@ -357,7 +357,10 @@ function autoRegisterWechatUser(jid: string): RegisteredGroup | null {
   const folder = (match?.[1] ?? 'wx').slice(0, 60);
 
   if (!isValidGroupFolder(folder)) {
-    logger.warn({ jid, folder }, 'Auto-registration failed: invalid folder name');
+    logger.warn(
+      { jid, folder },
+      'Auto-registration failed: invalid folder name',
+    );
     return null;
   }
 
@@ -366,7 +369,11 @@ function autoRegisterWechatUser(jid: string): RegisteredGroup | null {
     fs.mkdirSync(groupPath, { recursive: true });
     const claudeMdPath = path.join(groupPath, 'CLAUDE.md');
     if (!fs.existsSync(claudeMdPath)) {
-      fs.writeFileSync(claudeMdPath, `# ${folder}\n\nPersonal assistant for ${userId}.\n`, 'utf-8');
+      fs.writeFileSync(
+        claudeMdPath,
+        `# ${folder}\n\nPersonal assistant for ${userId}.\n`,
+        'utf-8',
+      );
     }
   } catch (err) {
     logger.warn({ jid, folder, err }, 'Failed to create group folder');
@@ -429,7 +436,8 @@ async function startMessageLoop(): Promise<void> {
         }
 
         for (const [chatJid, groupMessages] of messagesByGroup) {
-          let group: RegisteredGroup | undefined | null = registeredGroups[chatJid];
+          let group: RegisteredGroup | undefined | null =
+            registeredGroups[chatJid];
           if (!group) {
             // Try auto-register for WeChat (other channels skip)
             group = autoRegisterWechatUser(chatJid);

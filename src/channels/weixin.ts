@@ -1,11 +1,7 @@
 import { readEnvFile } from '../env.js';
 import { logger } from '../logger.js';
 import { randomWechatUin } from '../utils.js';
-import {
-  Channel,
-  OnChatMetadata,
-  OnInboundMessage,
-} from '../types.js';
+import { Channel, OnChatMetadata, OnInboundMessage } from '../types.js';
 
 export interface WeixinChannelOpts {
   onMessage: OnInboundMessage;
@@ -59,7 +55,9 @@ export class WeixinChannel implements Channel {
     this.opts = opts;
 
     const env = readEnvFile(['WEIXIN_BASE_URL', 'WEIXIN_TOKEN']);
-    this.baseUrl = (env.WEIXIN_BASE_URL || 'https://ilinkai.weixin.qq.com').replace(/\/$/, '');
+    this.baseUrl = (
+      env.WEIXIN_BASE_URL || 'https://ilinkai.weixin.qq.com'
+    ).replace(/\/$/, '');
     this.token = env.WEIXIN_TOKEN || '';
 
     if (!this.token) {
