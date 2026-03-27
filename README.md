@@ -54,7 +54,7 @@ Then run `/setup`. Claude Code handles everything: dependencies, authentication,
 
 ## What It Supports
 
-- **Messenger I/O** - Message NanoClaw from Feishu.
+- **Messenger I/O** - Message NanoClaw from Weixin.
 - **Isolated group context** - Each group has its own `CLAUDE.md` memory, isolated filesystem, and runs in its own container sandbox with only that filesystem mounted to it.
 - **Main channel** - Your private channel (self-chat) for admin control; every group is completely isolated
 - **Scheduled tasks** - Recurring jobs that run Claude and can message you back
@@ -130,7 +130,7 @@ Module breakdown: [docs/MODULES.md](docs/MODULES.md)
 
 Key files:
 - `src/index.ts` - Orchestrator: state, message loop, agent invocation
-- `src/channels/feishu.ts` - Feishu connection, send/receive
+- `src/channels/weixin.ts` - Weixin connection, send/receive
 - `src/ipc.ts` - IPC watcher and task processing
 - `src/router.ts` - Message formatting and outbound routing
 - `src/group-queue.ts` - Per-group queue with global concurrency limit

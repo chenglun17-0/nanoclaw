@@ -121,14 +121,13 @@ export async function run(_args: string[]): Promise<void> {
     }
   }
 
-  // 4. Check Feishu channel config
-  let feishuConfig = 'missing';
+  // 4. Check Weixin channel config
+  let weixinConfig = 'missing';
   if (fs.existsSync(envFile)) {
     const envContent = fs.readFileSync(envFile, 'utf-8');
-    const hasAppId = hasNonEmptyEnvValue(envContent, 'FEISHU_APP_ID');
-    const hasAppSecret = hasNonEmptyEnvValue(envContent, 'FEISHU_APP_SECRET');
-    if (hasAppId && hasAppSecret) {
-      feishuConfig = 'configured';
+    const hasToken = hasNonEmptyEnvValue(envContent, 'WEIXIN_TOKEN');
+    if (hasToken) {
+      weixinConfig = 'configured';
     }
   }
 
@@ -162,8 +161,7 @@ export async function run(_args: string[]): Promise<void> {
   const status =
     service === 'running' &&
     credentials !== 'missing' &&
-    feishuConfig === 'configured' &&
-    registeredGroups > 0
+    weixinConfig === 'configured'
       ? 'success'
       : 'failed';
 
@@ -173,7 +171,7 @@ export async function run(_args: string[]): Promise<void> {
     SERVICE: service,
     CONTAINER_RUNTIME: containerRuntime,
     CREDENTIALS: credentials,
-    FEISHU_CONFIG: feishuConfig,
+    WEIXIN_CONFIG: weixinConfig,
     REGISTERED_GROUPS: registeredGroups,
     MOUNT_ALLOWLIST: mountAllowlist,
     STATUS: status,

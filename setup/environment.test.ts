@@ -99,8 +99,8 @@ describe('Docker detection logic', () => {
   });
 });
 
-describe('Feishu config detection', () => {
-  it('requires both FEISHU_APP_ID and FEISHU_APP_SECRET', () => {
+describe('Weixin config detection', () => {
+  it('requires WEIXIN_TOKEN to be non-empty', () => {
     const hasNonEmptyEnvValue = (content: string, key: string) => {
       const pattern = new RegExp(`^${key}[ \\t]*=[ \\t]*([^\\r\\n]*)$`, 'm');
       const match = content.match(pattern);
@@ -118,19 +118,13 @@ describe('Feishu config detection', () => {
     };
 
     const hasChannelConfig = (content: string) =>
-      hasNonEmptyEnvValue(content, 'FEISHU_APP_ID') &&
-      hasNonEmptyEnvValue(content, 'FEISHU_APP_SECRET');
+      hasNonEmptyEnvValue(content, 'WEIXIN_TOKEN');
 
-    expect(hasChannelConfig('FEISHU_APP_ID=cli_xxx')).toBe(false);
-    expect(hasChannelConfig('FEISHU_APP_SECRET=sec_xxx')).toBe(false);
-    expect(hasChannelConfig(`FEISHU_APP_ID=cli_xxx\nFEISHU_APP_SECRET=sec_xxx`)).toBe(
-      true,
-    );
-    expect(hasChannelConfig('FEISHU_APP_ID=\nFEISHU_APP_SECRET=sec_xxx')).toBe(
-      false,
-    );
-    expect(
-      hasChannelConfig('FEISHU_APP_ID=\"cli_xxx\"\nFEISHU_APP_SECRET=\"\"'),
-    ).toBe(false);
+    expect(hasChannelConfig('WEIXIN_TOKEN=wx_token_abc123')).toBe(true);
+    expect(hasChannelConfig('WEIXIN_TOKEN=wx_token_abc123\nOTHER=foo')).toBe(true);
+    expect(hasChannelConfig('WEIXIN_TOKEN=')).toBe(false);
+    expect(hasChannelConfig('WEIXIN_TOKEN=""')).toBe(false);
+    expect(hasChannelConfig('WEIXIN_TOKEN=""\nOTHER=foo')).toBe(false);
+    expect(hasChannelConfig('SOME_OTHER=value')).toBe(false);
   });
 });

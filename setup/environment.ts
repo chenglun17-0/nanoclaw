@@ -61,9 +61,8 @@ export async function run(_args: string[]): Promise<void> {
   let hasChannelConfig = false;
   if (hasEnv) {
     const envContent = fs.readFileSync(path.join(projectRoot, '.env'), 'utf-8');
-    const hasAppId = hasNonEmptyEnvValue(envContent, 'FEISHU_APP_ID');
-    const hasAppSecret = hasNonEmptyEnvValue(envContent, 'FEISHU_APP_SECRET');
-    hasChannelConfig = hasAppId && hasAppSecret;
+    const hasWeixinToken = hasNonEmptyEnvValue(envContent, 'WEIXIN_TOKEN');
+    hasChannelConfig = hasWeixinToken;
   }
 
   let hasRegisteredGroups = false;

@@ -11,14 +11,14 @@ beforeEach(() => {
 // --- JID ownership patterns ---
 
 describe('JID ownership patterns', () => {
-  it('Feishu JID: starts with fs:', () => {
-    const jid = 'fs:oc_12345678';
-    expect(jid.startsWith('fs:')).toBe(true);
+  it('Weixin JID: starts with wx:', () => {
+    const jid = 'wx:oc_12345678';
+    expect(jid.startsWith('wx:')).toBe(true);
   });
 
-  it('Non-Feishu JID should not start with fs:', () => {
+  it('Non-Weixin JID should not start with wx:', () => {
     const jid = 'tg:12345678';
-    expect(jid.startsWith('fs:')).toBe(false);
+    expect(jid.startsWith('wx:')).toBe(false);
   });
 });
 
@@ -27,67 +27,67 @@ describe('JID ownership patterns', () => {
 describe('getAvailableGroups', () => {
   it('returns only groups, excludes DMs', () => {
     storeChatMetadata(
-      'fs:group1',
+      'wx:group1',
       '2024-01-01T00:00:01.000Z',
       'Group 1',
-      'feishu',
+      'weixin',
       true,
     );
     storeChatMetadata(
-      'fs:dm1',
+      'wx:dm1',
       '2024-01-01T00:00:02.000Z',
       'User DM',
-      'feishu',
+      'weixin',
       false,
     );
     storeChatMetadata(
-      'fs:group2',
+      'wx:group2',
       '2024-01-01T00:00:03.000Z',
       'Group 2',
-      'feishu',
+      'weixin',
       true,
     );
 
     const groups = getAvailableGroups();
     expect(groups).toHaveLength(2);
-    expect(groups.map((g) => g.jid)).toContain('fs:group1');
-    expect(groups.map((g) => g.jid)).toContain('fs:group2');
-    expect(groups.map((g) => g.jid)).not.toContain('fs:dm1');
+    expect(groups.map((g) => g.jid)).toContain('wx:group1');
+    expect(groups.map((g) => g.jid)).toContain('wx:group2');
+    expect(groups.map((g) => g.jid)).not.toContain('wx:dm1');
   });
 
   it('excludes __group_sync__ sentinel', () => {
     storeChatMetadata('__group_sync__', '2024-01-01T00:00:00.000Z');
     storeChatMetadata(
-      'fs:group',
+      'wx:group',
       '2024-01-01T00:00:01.000Z',
       'Group',
-      'feishu',
+      'weixin',
       true,
     );
 
     const groups = getAvailableGroups();
     expect(groups).toHaveLength(1);
-    expect(groups[0].jid).toBe('fs:group');
+    expect(groups[0].jid).toBe('wx:group');
   });
 
   it('marks registered groups correctly', () => {
     storeChatMetadata(
-      'fs:reg',
+      'wx:reg',
       '2024-01-01T00:00:01.000Z',
       'Registered',
-      'feishu',
+      'weixin',
       true,
     );
     storeChatMetadata(
-      'fs:unreg',
+      'wx:unreg',
       '2024-01-01T00:00:02.000Z',
       'Unregistered',
-      'feishu',
+      'weixin',
       true,
     );
 
     _setRegisteredGroups({
-      'fs:reg': {
+      'wx:reg': {
         name: 'Registered',
         folder: 'registered',
         trigger: '@Andy',
@@ -96,8 +96,8 @@ describe('getAvailableGroups', () => {
     });
 
     const groups = getAvailableGroups();
-    const reg = groups.find((g) => g.jid === 'fs:reg');
-    const unreg = groups.find((g) => g.jid === 'fs:unreg');
+    const reg = groups.find((g) => g.jid === 'wx:reg');
+    const unreg = groups.find((g) => g.jid === 'wx:unreg');
 
     expect(reg?.isRegistered).toBe(true);
     expect(unreg?.isRegistered).toBe(false);
@@ -105,31 +105,31 @@ describe('getAvailableGroups', () => {
 
   it('returns groups ordered by most recent activity', () => {
     storeChatMetadata(
-      'fs:old',
+      'wx:old',
       '2024-01-01T00:00:01.000Z',
       'Old',
-      'feishu',
+      'weixin',
       true,
     );
     storeChatMetadata(
-      'fs:new',
+      'wx:new',
       '2024-01-01T00:00:05.000Z',
       'New',
-      'feishu',
+      'weixin',
       true,
     );
     storeChatMetadata(
-      'fs:mid',
+      'wx:mid',
       '2024-01-01T00:00:03.000Z',
       'Mid',
-      'feishu',
+      'weixin',
       true,
     );
 
     const groups = getAvailableGroups();
-    expect(groups[0].jid).toBe('fs:new');
-    expect(groups[1].jid).toBe('fs:mid');
-    expect(groups[2].jid).toBe('fs:old');
+    expect(groups[0].jid).toBe('wx:new');
+    expect(groups[1].jid).toBe('wx:mid');
+    expect(groups[2].jid).toBe('wx:old');
   });
 
   it('excludes non-group chats regardless of JID format', () => {
@@ -146,16 +146,16 @@ describe('getAvailableGroups', () => {
       false,
     );
     storeChatMetadata(
-      'fs:group',
+      'wx:group',
       '2024-01-01T00:00:03.000Z',
       'Group',
-      'feishu',
+      'weixin',
       true,
     );
 
     const groups = getAvailableGroups();
     expect(groups).toHaveLength(1);
-    expect(groups[0].jid).toBe('fs:group');
+    expect(groups[0].jid).toBe('wx:group');
   });
 
   it('returns empty array when no chats exist', () => {

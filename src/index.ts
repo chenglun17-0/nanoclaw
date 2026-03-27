@@ -3,12 +3,13 @@ import path from 'path';
 
 import {
   ASSISTANT_NAME,
+  GROUPS_DIR,
   IDLE_TIMEOUT,
   MAIN_GROUP_FOLDER,
   POLL_INTERVAL,
   TRIGGER_PATTERN,
 } from './config.js';
-import { FeishuChannel } from './channels/feishu.js';
+import { WeixinChannel } from './channels/weixin.js';
 import {
   ContainerOutput,
   runContainerAgent,
@@ -26,6 +27,7 @@ import {
   getAllTasks,
   getMessagesSince,
   getNewMessages,
+  getAllWechatJids,
   getRouterState,
   initDatabase,
   setRegisteredGroup,
@@ -35,7 +37,7 @@ import {
   storeMessage,
 } from './db.js';
 import { GroupQueue } from './group-queue.js';
-import { resolveGroupFolderPath } from './group-folder.js';
+import { isValidGroupFolder, resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
 import { findChannel, formatMessages, formatOutbound } from './router.js';
 import { startSchedulerLoop } from './task-scheduler.js';
@@ -51,7 +53,7 @@ let registeredGroups: Record<string, RegisteredGroup> = {};
 let lastAgentTimestamp: Record<string, string> = {};
 let messageLoopRunning = false;
 
-let feishu: FeishuChannel;
+let weixin: WeixinChannel;
 const channels: Channel[] = [];
 const queue = new GroupQueue();
 
@@ -187,7 +189,24 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     }, IDLE_TIMEOUT);
   };
 
+  // Keepalive: send typing indicator every 5s while agent processes
+  let typingTimer: ReturnType<typeof setInterval> | null = null;
+  const startTypingKeepalive = () => {
+    channel.setTyping?.(chatJid, true);
+    typingTimer = setInterval(() => {
+      channel.setTyping?.(chatJid, true);
+    }, 5000);
+  };
+  const stopTypingKeepalive = () => {
+    if (typingTimer) {
+      clearInterval(typingTimer);
+      typingTimer = null;
+    }
+    channel.setTyping?.(chatJid, false);
+  };
+
   await channel.setTyping?.(chatJid, true);
+  startTypingKeepalive();
   let hadError = false;
   let outputSentToUser = false;
 
@@ -218,7 +237,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     }
   });
 
-  await channel.setTyping?.(chatJid, false);
+  stopTypingKeepalive();
   if (idleTimer) clearTimeout(idleTimer);
 
   if (output === 'error' || hadError) {
@@ -325,6 +344,54 @@ async function runAgent(
   }
 }
 
+/**
+ * Auto-register a WeChat user who sends their first message.
+ * Creates a group folder and DB entry, then adds to the in-memory map.
+ */
+function autoRegisterWechatUser(jid: string): RegisteredGroup | null {
+  if (!jid.startsWith('wx:')) return null;
+
+  const userId = jid.slice(3); // strip "wx:"
+  // Extract first alphanumeric segment as folder name
+  const match = userId.match(/^([a-zA-Z0-9]+)/);
+  const folder = (match?.[1] ?? 'wx').slice(0, 60);
+
+  if (!isValidGroupFolder(folder)) {
+    logger.warn({ jid, folder }, 'Auto-registration failed: invalid folder name');
+    return null;
+  }
+
+  const groupPath = path.join(GROUPS_DIR, folder);
+  try {
+    fs.mkdirSync(groupPath, { recursive: true });
+    const claudeMdPath = path.join(groupPath, 'CLAUDE.md');
+    if (!fs.existsSync(claudeMdPath)) {
+      fs.writeFileSync(claudeMdPath, `# ${folder}\n\nPersonal assistant for ${userId}.\n`, 'utf-8');
+    }
+  } catch (err) {
+    logger.warn({ jid, folder, err }, 'Failed to create group folder');
+    return null;
+  }
+
+  const group: RegisteredGroup = {
+    name: userId,
+    folder,
+    trigger: '.*',
+    added_at: new Date().toISOString(),
+    requiresTrigger: false,
+  };
+
+  try {
+    setRegisteredGroup(jid, group);
+    registeredGroups[jid] = group;
+    logger.info({ jid, folder }, 'Auto-registered WeChat user');
+    return group;
+  } catch (err) {
+    logger.warn({ jid, folder, err }, 'Failed to register WeChat user in DB');
+    return null;
+  }
+}
+
 async function startMessageLoop(): Promise<void> {
   if (messageLoopRunning) {
     logger.debug('Message loop already running, skipping duplicate start');
@@ -336,7 +403,7 @@ async function startMessageLoop(): Promise<void> {
 
   while (true) {
     try {
-      const jids = Object.keys(registeredGroups);
+      const jids = [...Object.keys(registeredGroups), ...getAllWechatJids()];
       const { messages, newTimestamp } = getNewMessages(
         jids,
         lastTimestamp,
@@ -362,8 +429,12 @@ async function startMessageLoop(): Promise<void> {
         }
 
         for (const [chatJid, groupMessages] of messagesByGroup) {
-          const group = registeredGroups[chatJid];
-          if (!group) continue;
+          let group: RegisteredGroup | undefined | null = registeredGroups[chatJid];
+          if (!group) {
+            // Try auto-register for WeChat (other channels skip)
+            group = autoRegisterWechatUser(chatJid);
+            if (!group) continue;
+          }
 
           const channel = findChannel(channels, chatJid);
           if (!channel) {
@@ -471,13 +542,12 @@ async function main(): Promise<void> {
       channel?: string,
       isGroup?: boolean,
     ) => storeChatMetadata(chatJid, timestamp, name, channel, isGroup),
-    registeredGroups: () => registeredGroups,
   };
 
   // Create and connect channels
-  feishu = new FeishuChannel(channelOpts);
-  channels.push(feishu);
-  await feishu.connect();
+  weixin = new WeixinChannel(channelOpts);
+  channels.push(weixin);
+  await weixin.connect();
 
   // Start subsystems (independently of connection handler)
   startSchedulerLoop({
@@ -505,7 +575,7 @@ async function main(): Promise<void> {
     registeredGroups: () => registeredGroups,
     registerGroup,
     syncGroupMetadata: (force) =>
-      feishu?.syncGroupMetadata(force) ?? Promise.resolve(),
+      weixin?.syncGroupMetadata(force) ?? Promise.resolve(),
     getAvailableGroups,
     writeGroupsSnapshot: (gf, im, ag, rj) =>
       writeGroupsSnapshot(gf, im, ag, rj),

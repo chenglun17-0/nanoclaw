@@ -1,11 +1,11 @@
 ---
 name: setup
-description: Run initial NanoClaw setup for Feishu channel. Use when user wants to install dependencies, configure Feishu app credentials, register main chat, or start background services.
+description: Run initial NanoClaw setup for Weixin channel. Use when user wants to install dependencies, configure Weixin credentials, register main chat, or start background services.
 ---
 
-# NanoClaw Setup (Feishu)
+# NanoClaw Setup (Weixin)
 
-Run setup steps automatically. Only pause when user action is required (container choice, Feishu app credentials, selecting main chat).
+Run setup steps automatically. Only pause when user action is required (container choice, Weixin login, selecting main chat).
 
 - Bootstrap: `bash setup.sh`
 - Setup steps: `npx tsx setup/index.ts --step <name>`
@@ -28,7 +28,7 @@ Run `npx tsx setup/index.ts --step environment`.
 
 Read fields:
 - `APPLE_CONTAINER`, `DOCKER`
-- `HAS_CHANNEL_CONFIG` (Feishu config exists)
+- `HAS_CHANNEL_CONFIG` (Weixin token exists)
 - `HAS_REGISTERED_GROUPS` (main chat already registered)
 
 ## 3. Container Runtime
@@ -54,36 +54,28 @@ Optional advanced fields:
 - `ANTHROPIC_BASE_URL`
 - `ANTHROPIC_MODEL`
 
-## 5. Feishu App Setup (Manual User Action)
+## 5. Weixin Login (Automated)
 
-If `HAS_CHANNEL_CONFIG=false`, guide user to create/configure app:
+If `HAS_CHANNEL_CONFIG=false`, run login script:
 
-1. Open Feishu Open Platform: `https://open.feishu.cn/app`
-2. Create **Enterprise Self-built App**
-3. Enable bot capability
-4. Enable event subscription in **long connection mode** (SDK WebSocket)
-5. Subscribe event: `im.message.receive_v1`
-6. Grant message send/receive permissions required by bot
-7. Copy `App ID` and `App Secret`
-
-Then write to `.env`:
 ```bash
-FEISHU_APP_ID=cli_xxx
-FEISHU_APP_SECRET=xxx
+npm run weixin:login
 ```
+
+User scans QR code, token is automatically saved to `.env`.
 
 ## 6. Register Main Chat
 
-Setup register step needs a JID in format: `fs:<chat_id>`.
+Setup register step needs a JID in format: `wx:<user_id>`.
 
 Ask user for:
-- main chat `chat_id` (from Feishu event payload or app debugging tools)
+- main chat `user_id` (Weixin user ID, ends with @im.wechat)
 - assistant trigger word (default `@Andy`)
 
 Then register:
 ```bash
 npx tsx setup/index.ts --step register -- \
-  --jid "fs:<chat_id>" \
+  --jid "wx:<user_id>" \
   --name "main" \
   --trigger "@Andy" \
   --folder "main" \
@@ -126,13 +118,13 @@ npx tsx setup/index.ts --step verify
 If failed, fix by status field:
 - `SERVICE`: rerun service step
 - `CREDENTIALS=missing`: set `ANTHROPIC_AUTH_TOKEN`
-- `FEISHU_CONFIG=missing`: set non-empty `FEISHU_APP_ID` + `FEISHU_APP_SECRET`
+- `WEIXIN_CONFIG=missing`: rerun `npm run weixin:login`
 - `REGISTERED_GROUPS=0`: rerun register step
 - `MOUNT_ALLOWLIST=missing`: run mounts step
 
 ## 10. Smoke Test
 
-Tell user to send message in registered Feishu chat.
+Tell user to send message in Weixin to the bot.
 
 Watch logs:
 ```bash
@@ -143,11 +135,12 @@ tail -f logs/nanoclaw.log
 
 - Service not starting: check `logs/nanoclaw.error.log`
 - No response in chat:
-  - confirm JID is `fs:<chat_id>`
+  - confirm JID is `wx:<user_id>`
   - confirm chat is in `registered_groups`
   - confirm trigger config for non-main chats
-- Feishu token/config error:
-  - verify `.env` has non-empty `FEISHU_APP_ID` and `FEISHU_APP_SECRET`
+- Weixin token error:
+  - verify `.env` has non-empty `WEIXIN_TOKEN`
+  - rerun `npm run weixin:login` if needed
   - restart service after changes
 
 - Unload service:

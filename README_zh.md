@@ -128,7 +128,7 @@ Feishu --> SQLite --> 轮询循环 --> 容器 (Claude Agent SDK) --> 响应
 
 关键文件：
 - `src/index.ts` - 编排器：状态管理、消息循环、智能体调用
-- `src/channels/feishu.ts` - 飞书连接、收发消息
+- `src/channels/weixin.ts` - 微信连接、收发消息
 - `src/ipc.ts` - IPC 监听与任务处理
 - `src/router.ts` - 消息格式化与出站路由
 - `src/group-queue.ts` - 各带全局并发限制的群组队列

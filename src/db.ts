@@ -315,6 +315,14 @@ export function getNewMessages(
   return { messages: rows, newTimestamp };
 }
 
+/** Returns all WeChat JIDs (wx: prefix) that have messages in the DB. */
+export function getAllWechatJids(): string[] {
+  const rows = db
+    .prepare("SELECT DISTINCT chat_jid FROM messages WHERE chat_jid LIKE 'wx:%'")
+    .all() as Array<{ chat_jid: string }>;
+  return rows.map((r) => r.chat_jid);
+}
+
 export function getMessagesSince(
   chatJid: string,
   sinceTimestamp: string,
